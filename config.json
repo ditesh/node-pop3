@@ -1,0 +1,6 @@
+{
+	"type":	"mbox",
+	"port": 110,
+	"server": "localhost",
+	"log": "/tmp/pop3"
+}
