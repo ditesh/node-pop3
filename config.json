@@ -1,6 +1,6 @@
 {
 	"type":	"mbox",
-	"port": 110,
-	"server": "localhost",
-	"log": "/tmp/pop3"
+	"port": 1111,
+	"log": "/tmp/pop3",
+	"spool": "/var/spool/mail"
 }

@@ -1,5 +1,9 @@
-var	net = require("net"),
-	console = require("console");
+var	net = require("net");
+	
+var	argv = require('optimist')
+		.usage("Usage: $0 --port [port] --username username --password password")
+		.demand(['port', 'username', 'password'])
+		.argv;
 
 state = "username";
 socket = net.Socket()
@@ -15,14 +19,14 @@ socket.addListener('data', function(data) {
 
 		if (state === "username") {
 
-			console.log("USER ditesh");
-			socket.write('USER ditesh\r\n');
+			console.log("USER " + argv.username);
+			socket.write('USER ' + argv.username + '\r\n');
 			state = "password";
 
 		} else if (state === "password") {
 
-			console.log("PASS ditesh");
-			socket.write('PASS ditesh\r\n');
+			console.log("PASS " + argv.password);
+			socket.write('PASS ' + argv.password + '\r\n');
 			state = "";
 
 		}
@@ -35,4 +39,4 @@ socket.addListener('data', function(data) {
 
 });
 
-socket.connect(1110);
+socket.connect(argv.port);

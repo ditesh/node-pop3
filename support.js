@@ -6,7 +6,7 @@ this.ok= function(socket, msg) {
 
 	} else {
 
-		socket.write("+OK" + msg + "\r\n");
+		socket.write("+OK " + msg + "\r\n");
 
 	}
 
@@ -22,7 +22,7 @@ this.sorry = function(socket, msg) {
 
 		} else {
 
-			socket.write("-ERR" + msg + "\r\n");
+			socket.write("-ERR " + msg + "\r\n");
 
 		}
 

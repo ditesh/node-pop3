@@ -1,3 +1,3 @@
-POP3 server written in NodeJS.
+POP3 server written in Node.js.
 
-Very much a work in progress, at the moment.
+Doesn't conform to any RFC. Very much a work in progress, at the moment.

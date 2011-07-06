@@ -1,85 +1,98 @@
 var 	fs = require("fs"),
-	sys = require("sys"),
-	path = require("path");
+	path = require("path"),
+	unixlib = require("unixlib");
 
-this.authenticate = function(mboxPath, username, password, fn) {
+this.authenticate = function(mboxPath, username, password, cb) {
 
-	// Real auth has to go in here
-	// Locking then follows
+	var self = this;
 
-	path.exists(mboxPath, function(exists) {
+	unixlib.pamauth("system-auth", username, password, function(result) {
 
-		if (exists === true) {
+		if (result === false) {
 
-			var mboxPath = path.join(mboxPath, username);
-
-			path.exists(mboxPath, function(exists) {
-
-				sys.log("flocking child process");
-				var ls = process.createChildProcess("ls");
-				ls.addListener("exit", function(code) {
-
-					if (code === 1) {
-
-						fn(mailbox(null));
-
-					} else {
-
-						fn(mailbox(mboxPath, username));
-
-					}
-
-				});
-			});
-
+			cb({
+				errno: 1
+			}, null);
 
 		} else {
 
-			throw "NOPATH";
+			var mboxfile = path.join(mboxPath, username);
 
+			path.exists(mboxfile, function(exists) {
+
+				if (exists === true) {
+
+					fs.open(mboxfile, "w+", function(err, fd) {
+
+						unixlib.flock(fd, function(result) {
+
+							if (result === true) {
+
+								cb(null, new self.mailbox(fd, username));
+
+							} else {
+
+								cb({
+									errno: 2
+								});
+							}
+
+						});
+					});
+
+				} else {
+
+					cb({
+						errno: 3
+					});
+
+				}
+			});
 		}
-
 	});
 
 }
 
-this.unlock= function(fn) {
+this.unlock= function(cb) {
 
-	process.ChildProcess("flock", ["-u", "-nb", mboxPath + "/" + username]);
+	unixlib.deflock(fd, function(result) {
+
+		if (result === true) 
+			cb();
+
+		else
+			cb({
+				errno: 4
+			});
+	});
 
 }
 
-this.mailbox = function(path, username) {
+this.mailbox = function(fd, username) {
 
-	var mbox;
-	var msgList;
-	var mailboxSize;
-	var locked = false;
-	var mboxPath = path;
+	var msglist;
 	var username = username;
-	var password = password;
 
-	// Determine msglist
-	function list(fn) {
+	// A work in progress
+	function readmbox(position) {
 
-		if (locked === true) {
+		var buffer = new Buffer();
+		fs.read(fd, buffer, 0, position, function(err, data) {
 
-			return false;
+			if (err === null) {
 
-		}
+				readmbox();
 
-		locked = true;
+			}
 
-		// Mailbox does not exist, thus no messages are available
-		if (mboxPath === null) {
+		});
+	}
 
-			mbox = "";
-			mailboxSize = 0;
-			msgList = [];
+	this.list = function(cb) {
 
-		} else if (msgList === undefined) {
+		if (msglist === undefined) {
 
-			fs.readFile(mboxPath + "/" + username, "ascii", function(err, data) {
+			fs.readFile(fd, "ascii", function(err, data) {
 
 				if (err) {
 
@@ -132,22 +145,12 @@ this.mailbox = function(path, username) {
 			});
 		}
 
-		if (typeof fn === "function") {
-
-			fn();
-
-		}
-
-		locked = false;
+		cb(null, msglist);
 
 	}
 
-	function stat(fn) {
-
-		locked = true;
-		fn(msgList.length, mailboxSize);
-		locked = false;
-
+	function stat(cb) {
+		cb(msgList.length, mailboxSize);
 	}
 
 	function dele(msgNumber) {
@@ -224,9 +227,7 @@ this.mailbox = function(path, username) {
 	}
 
 	function close() {
-
 		fs.close(fd);
-
 	}
 
 	list();
