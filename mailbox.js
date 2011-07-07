@@ -57,7 +57,10 @@ this.unlock= function(cb) {
 
 this.mailbox = function(fd, cb) {
 
-	// Not the best data structure, but its good enough
+	// Original structure
+	var omessages;
+
+	// Manipulated structure due to message deletion
 	var messages = {
 		deleted:  [],
 		offsets:  [],
@@ -133,6 +136,9 @@ this.mailbox = function(fd, cb) {
 					messages.size += msgsize;
 					messages.sizes[messages.offsets[i]] = msgsize;
 					messages.count = messages.offsets.length;
+
+					// Make a copy
+					omessages = messages;
 					cb(null);
 
 				}
@@ -150,13 +156,20 @@ this.mailbox = function(fd, cb) {
 
 	this.dele = function(msgnumber, cb) {
 
-		if (msgnumber > messages.count) {
+		if (msgnumber > omessages.count) {
 
 			cb({errno: 6});
 
 		} else {
 
-			messages.deleted[msgnumber] = 1;
+			// We take advantage of implicity JS hashing to avoid O(n) lookups
+			var messagesize = messages
+			var offset = messages.offsets[msgnumber - 1];
+			delete messages.offsets[msgnumber - 1];
+			delete messages.sizes[offset];
+
+			messages.count -= 1;
+			messages.size -= messagesize;
 			cb(null);
 
 		}
@@ -164,7 +177,7 @@ this.mailbox = function(fd, cb) {
 
 	this.retr = function(msgnumber, cb) {
 
-		if (msgnumber > messages.count) {
+		if (msgnumber > omessages.count) {
 
 			cb({errno: 5});
 
@@ -181,7 +194,8 @@ this.mailbox = function(fd, cb) {
 
 	this.rset = function(cb) {
 
-		messages.deleted = [];
+		// Revert to original data
+		messages = omessages;
 		cb();
 
 	}
