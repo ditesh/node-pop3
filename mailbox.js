@@ -10,9 +10,7 @@ this.authenticate = function(mboxPath, username, password, cb) {
 
 		if (result === false) {
 
-			cb({
-				errno: 1
-			}, null);
+			cb({errno: 1}, null);
 
 		} else {
 
@@ -22,31 +20,22 @@ this.authenticate = function(mboxPath, username, password, cb) {
 
 				if (exists === true) {
 
-					fs.open(mboxfile, "w+", function(err, fd) {
+					fs.open(mboxfile, "r+", function(err, fd) {
 
 						unixlib.flock(fd, function(result) {
 
-							if (result === true) {
+							if (result === true)
+								cb(null, fd);
 
-								cb(null, new self.mailbox(fd, username));
-
-							} else {
-
-								cb({
-									errno: 2
-								});
-							}
+							else
+								cb({errno: 2}, null);
 
 						});
 					});
 
-				} else {
+				} else 
+					cb({errno: 3});
 
-					cb({
-						errno: 3
-					});
-
-				}
 			});
 		}
 	});
@@ -61,175 +50,140 @@ this.unlock= function(cb) {
 			cb();
 
 		else
-			cb({
-				errno: 4
-			});
+			cb({errno: 4});
 	});
 
 }
 
-this.mailbox = function(fd, username) {
+this.mailbox = function(fd, cb) {
 
-	var msglist;
-	var username = username;
+	// Not the best data structure, but its good enough
+	var msgoffset = [];
+	var msgsizes = [];
+	var totalmsgsize = 0;
 
-	// A work in progress
-	function readmbox(position) {
+	function readmbox(position, previousbuf, cb) {
 
-		var buffer = new Buffer();
-		fs.read(fd, buffer, 0, position, function(err, data) {
+		var i = 0;
+		var minlen = 0;
+		var msgsize = 0;
+		var buffer = new Buffer(4096);
 
-			if (err === null) {
+		fs.read(fd, buffer, 0, 4096, position, function(err, bytesRead, buffer) {
 
-				readmbox();
+			if (err) {
 
+				cb(err);
+
+			} else {
+
+				if (previousbuf !== null) {
+
+					buffer = new Buffer(previousbuf + buffer)
+					previousbuf = null;
+
+				}
+
+				i = 0;
+				minlen = (bytesRead === buffer.length) ? buffer.length : bytesRead;
+				while (i < minlen) {
+
+					// Match for newline, ASCII code 10
+					if (buffer[i] === 10) {
+
+						// \nFrom is within buffer 
+						if (i + 5 > buffer.length-1) {
+
+							previousbuf = new Buffer(buffer.slice(i));
+							break;
+
+						// \nFrom is split between the buffers
+						} else if (buffer.slice(i+1, i+6).toString() === "From ")
+							msgoffset.push(position+i+1)
+
+					}
+
+					i++;
+
+				}
+
+				// There is more to read!
+				if (bytesRead === 4096) {
+
+					readmbox(position+4096, previousbuf, cb);
+
+				} else {
+
+					i = 0;
+
+					while (i < msgoffset.length - 1) {
+
+						msgsize = msgoffset[i+1] - msgoffset[i];
+						totalmsgsize += msgsize;
+						msgsizes.push(msgsize);
+						i++;
+
+					}
+
+					msgsize = position + bytesRead - msgoffset[i];
+					totalmsgsize += msgsize;
+					msgsizes[msgoffset[i]] = msgsize;
+					cb(null);
+
+				}
 			}
-
 		});
 	}
 
 	this.list = function(cb) {
+		cb(msgsizes);
+	}
 
-		if (msglist === undefined) {
+	this.stat = function(cb) {
+		cb(msgoffset.length, totalmsgsize);
+	}
 
-			fs.readFile(fd, "ascii", function(err, data) {
+	this.dele = function(msgnumber, cb) {
 
-				if (err) {
+		if (msgnumber > msgoffset.length) {
 
-					locked = false;
-					throw err;
+			cb(true);
 
-				} else {
+		} else {
 
-					mbox = data;
-					mailboxSize = data.length;
+			// Implement delete function
+//			msglist[msgNumber].deleted = true;
+			cb(null);
 
-					if (mailboxSize <= 6) {
+		}
+	}
 
-						msgList = [];
-						return;
+	this.retr = function(msgnumber) {
 
-					}
+		if (msgnumber > msgoffset.length) {
 
-					var i = 0;
-					var mboxOffset = 0;
-					var parsedLength = 0;
+			cb({errno: 5});
 
-					if (data.substring(0, 4) === "From") {
+		} else {
 
-						msgList.push({ offset: 0, deleted: false });
-						parsedLength = 7;
+			var buffer = new Buffer(msgsizes[msgoffset[msgnumber]]);
 
-					}
-
-					while (parsedLength < mailboxSize) {
-
-						i++;
-						mboxOffset = data.indexOf("\r\nFrom", parsedLength);
-
-						if (offset > 0) {
-
-							msgList[i-1].size = (mboxOffset + 2) - msgList[i-1].offset;
-							msgList.push({ offset: mboxOffset + 2, deleted: false});
-							parsedLength += 6;
-
-						} else {
-
-							msgList[i-1].size = mailboxSize;
-							break;
-
-						}
-					}
-
-				}
+			fs.read(fd, buffer, 0, msgsizes[msgoffset[msgnumber]], msgoffset[msgnumber], function(err, bytesRead, buffer) {
+				cb(err, buffer.toString());
 			});
 		}
-
-		cb(null, msglist);
-
 	}
 
-	function stat(cb) {
-		cb(msgList.length, mailboxSize);
-	}
+	this.close=function() {
 
-	function dele(msgNumber) {
-
-		if (msgNumber > (msgList.length + 1)) {
-
-			sorry(socket);
-
-		} else {
-
-			msgList[msgNumber].deleted = true;
-			ok();
-
-		}
-	}
-
-	function retr() {
-
-		if (msgNumber > (msgList.length + 1)) {
-
-			sorry(socket);
-
-		} else {
-
-			var startOffset = msgList[msgNumber].offset;
-
-			if ((msgNumber + 1) > (msgList.length + 1)) {
-
-				var endOffset = mbox.length;
-
-			} else {
-
-				var endOffset = msgList[msgNumber+1] - 2;
-
-			}
-
-			var msg = mbox.substring(msgList[msgNumber].offset, msgList[msgNumber].size);
-			ok(socket);
-			socket.write(msg);
-
-		}
-	}
-
-	function sync(errfn, okfn) {
-
-		var newMbox = mbox;
-
-		for (var i = 0; i < msgList.length; i++) {
-
-			if (msgLisg.hasOwnProperty(i)) {
-
-				if (msgList[i] !== undefined) {
-
-					newMbox = mbox.substring(msgList[i].offset, msgList[i].size);
-
-				}
-			}
-		}
-
-		fs.writeFile(mboxPath + "/" + username, newMbox, function(err) {
-
-			if (err) {
-
-				errfn();
-				throw err;
-
-			} else {
-
-				okfn();
-
-			}
-		});
-
-	}
-
-	function close() {
+		// This should automagically release the lock
 		fs.close(fd);
+
 	}
 
-	list();
+	// new Buffer(\n): a small required hack for our readmbox() implementation
+	readmbox(-1, new Buffer("\n"), function(err) {
+		cb(err);
+	});
 
 }

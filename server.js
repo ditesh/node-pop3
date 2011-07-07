@@ -1,5 +1,5 @@
 var	mboxPath = "/home/ditesh/code/node-pop3",
-	activeSessions = [];
+	activesessions = {};
 
 var 	fs = require("fs"),
 	net = require("net"),
@@ -45,6 +45,11 @@ path.exists(argv.config, function(result) {
 
 	var server = net.createServer(function (socket) {
 
+		// Here is a list of valid states as per RFC 1939:
+		// State 1: AUTHORIZATION
+		// State 2: TRANSACTION
+		// State 3: UPDATE
+
 		var mbox;
 		var state = 1;
 		var username = "";
@@ -54,24 +59,21 @@ path.exists(argv.config, function(result) {
 
 		socket.addListener("data", function (data) {
 
-			var command = data.substring(0, 4).toLowerCase();
 			var argument = "";
+			var command = data.substring(0, 4).toLowerCase();
 
-			logger.log("Got command: " + command);
+			logger.log("Got command: '" + command + "'");
 
-			// Invalid commmand
-			if (data.length <=7 || data.substring(4, 5) !== " ") {
+			if (data.charAt(5) === "\n")
+				argument = "";
+			else
+				argument = data.substring(5, data.length-2); // Get the argument to the command, excluding the CRLF
 
-				support.sorry(socket);
-				return;
-
-			}
-
-			// Get the argument to the command, excluding the CRLF
-			argument = data.substring(5, data.length-2);
-			logger.log("Got argument: " + argument);
+			logger.log("Got argument: '" + argument + "'");
 
 			if (state === 1 && command === "user") {
+
+				logger.log("Got USER for user " + username);
 
 				state = 2;
 				username = argument;
@@ -79,118 +81,151 @@ path.exists(argv.config, function(result) {
 
 			} else if (state === 2 && command === "pass") {
 
+				logger.log("Got PASS for user " + username);
+
 				password = argument;
 
 				// Session is active
-				if (activeSessions.indexOf(username) > 0) {
+				if (activesessions[username] !== undefined) {
 
+					logger.error("Login rejected as session still active for user " + username);
 					support.sorry(socket);
 
 				} else {
 
-//					activeSessions.push(username);
+					// We store the active session to avoid duplicate attempts at login
+					activesessions[username] = new Date().getTime();
 
-					mailbox.authenticate(mboxPath, username, password, function(err, obj) {
+					mailbox.authenticate(mboxPath, username, password, function(err, fd) {
 
-						// Succeeded
-						if (err === null) {
+						mbox = new mailbox.mailbox(fd, function(err) {
 
-							state = 3;
-							mbox = obj;
-							support.ok(socket);
+							// Succeeded
+							if (err === null) {
 
-						} else {
+								state = 3;
+								support.ok(socket);
+								logger.log("Successful authentication for user " + username);
+								logger.log("Entering TRANSACTIONAL state for user " + username);
 
-							// We go back to state 1
-							state = 1;
-							username = "";
-							password = "";
-							support.sorry(socket);
+							} else {
 
-							if (err.errno === 1) {
+								// We go back to state 1
+								state = 1;
+								username = "";
+								password = "";
+								support.sorry(socket);
+								delete activesession[username];
 
-								// Authentication failed
-								logger.error("Authentication failed for user " + username);
+								if (err.errno === 1) {
 
-
-							} else if (err.errno === 2) {
-
-								// Cannot open mailbox file
-								logger.error("Cannot open mailbox file for user " + username);
-
-							} else if (err.errno === 3) {
-
-								// Cannot get a lock on mailbox
-								logger.error("Unable to get a lock on mailbox for user " + username);
+									// Authentication failed
+									logger.error("Authentication failed for user " + username);
 
 
+								} else if (err.errno === 2) {
+
+									// Cannot open mailbox file
+									logger.error("Cannot open mailbox file for user " + username);
+
+								} else if (err.errno === 3) {
+
+									// Cannot get a lock on mailbox
+									logger.error("Unable to get a lock on mailbox for user " + username);
+
+
+								}
 							}
-						}
+						});
 					});
 				}
 
 			} else if (state === 3 && command === "stat") {
 
+				logger.log("Got STAT from user " + username);
+
 				mbox.stat(function(count, size) {
 
-					support.ok(socketcount + " " + size);
+					support.ok(socket, count + " " + size);
 
 				});
 
 			} else if (state === 3 && command === "retr") {
 
-				var msgNumber = parseInt(argument, 10);
+				logger.log("Got RETR from user " + username);
 
-				if (msgNumber === NaN) {
+				var msgnumber = parseInt(argument, 10);
 
+				if (msgnumber === NaN) {
+
+					logger.error("Invalid message number " + argument + " in RETR for user " + username);
 					support.sorry(socket);
 
 				} else {
 
-					mbox.retr(msgNumber);
+					mbox.retr(msgnumber, function (err, data) {
 
+						if (err) {
+
+							support.sorry(socket);
+
+						} else {
+
+							support.ok(socket);
+							console.log(data);
+
+						}
+					});
 				}
 
 			} else if (state === 3 && command === "list") {
 
-				mbox.list(function(err) {
+				logger.log("Got LIST for user " + username);
+
+				mbox.list(function(msgsizes) {
 
 					support.ok(socket);
+					var count = 1;
 
-					for (var i =0; i < msgList.length; i++) {
+					for (var i in msgsizes) {
 
-						socket.write((i + 1) + " " + msgList[i].size); 
+						support.write(count + " " + msgsizes[i]); 
+						count++;
 
 					}
+
+					support.write(".");
 
 				});
 
 			} else if (state === 3 && command === "dele") {
 
-				var msgNumber = parseInt(argument, 10);
+				var msgnumber = parseInt(argument, 10);
 
-				if (msgNumber === NaN) {
+				if (msgnumber === NaN) {
 
 					support.sorry(socket);
 
 				} else {
 
-					mbox.dele(msgNumber);
+					mbox.dele(msgnumber, function(err) {
+
+						support.sorry(socket);
+						logger.error("Attempted to delete invalid message number " + msgnumber + " for user " + user);
+
+					});
 
 				}
 
 			} else if (state === 3 && command === "noop") {
 
+				logger.log("Got NOOP for user " + username);
 				support.ok(socket);
 
 			} else if (state === 3 && command === "quit") {
 
-				mbox.sync(function() {
-
-					support.sorry(socket);
-					socket.end();
-
-				}, function() {
+				logger.log("Entering UPDATE state");
+				mbox.close(function() {
 
 					support.ok(socket);
 					socket.close();
@@ -207,11 +242,11 @@ path.exists(argv.config, function(result) {
 
 		socket.addListener("end", function () {
 
-			if (typeof mbox === "object") {
+			if (typeof mbox === "object")
+				mbox.close();
 
-				unlock();
-
-			}
+			if (activesessions[username] !== undefined)
+				delete activesessions[username];
 
 			socket.end();
 			logger.log("Closing connection from " + socket.remoteAddress);
@@ -220,7 +255,8 @@ path.exists(argv.config, function(result) {
 
 		// We are in AUTHORIZATION state
 		logger.log("Got a connection from " + socket.remoteAddress);
-		support.ok(socket, "go ahead");
+		support.ok(socket);
+		logger.log("Entering AUTHORIZATION state");
 
 	});
 
