@@ -226,6 +226,12 @@ path.exists(argv.config, function(result) {
 				logger.log("Got NOOP for user " + username);
 				support.ok(socket);
 
+			} else if (state === 3 && command === "noop") {
+
+				logger.log("Got NOOP for user " + username);
+				support.ok(socket);
+
+
 			} else if (state === 3 && command === "quit") {
 
 				logger.log("Entering UPDATE state");
@@ -246,6 +252,7 @@ path.exists(argv.config, function(result) {
 
 		socket.addListener("end", function () {
 
+console.log("woo");
 			if (typeof mbox === "object") {
 
 				mbox.close(function() {
