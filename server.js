@@ -234,12 +234,8 @@ path.exists(argv.config, function(result) {
 
 			} else if (state === 3 && command === "quit") {
 
-				logger.log("Entering UPDATE state");
-				mbox.close(function() {
-
-					support.ok(socket);
-					socket.close();
-
+				support.ok(socket, undefined, function() {
+					socket.emit("end");
 				});
 
 			} else {
@@ -252,17 +248,20 @@ path.exists(argv.config, function(result) {
 
 		socket.addListener("end", function () {
 
-console.log("woo");
+			socket.destroy();
+			logger.log("Entering UPDATE state");
+
 			if (typeof mbox === "object") {
 
 				mbox.close(function() {
+
+					delete activesessions[username];
 					logger.log("Closed file descriptor for user " + username);
+
 				});
 			}
 
-			delete activesessions[username];
 			logger.log("Closing connection from " + socket.remoteAddress);
-			socket.end();
 
 		});
 
@@ -278,7 +277,10 @@ console.log("woo");
 		if (err.errno === 13) {
 
 			logger.error("Unable to bind to port " + port + " (permission denied)");
-			return;
+
+		} else {
+
+			logger.error("Some unforeseen error has occured: " +err);
 
 		}
 	});

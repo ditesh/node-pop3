@@ -2,13 +2,13 @@ this.write = function(socket, msg) {
 	socket.write(msg + "\r\n");
 };
 
-this.ok= function(socket, msg) {
+this.ok= function(socket, msg, cb) {
 
 	if (msg === undefined)
-		socket.write("+OK\r\n");
+		socket.write("+OK\r\n", cb);
 
 	else
-		socket.write("+OK " + msg + "\r\n");
+		socket.write("+OK " + msg + "\r\n", cb);
 
 };
 

@@ -58,11 +58,18 @@ socket.addListener('data', function(data) {
 
 			console.log("RETR 1");
 			socket.write("RETR 1\r\n");
-			state = "dele";
+			state = "quit";
 			multiline = true;
+
+		} else if (state === "quit") {
+
+			console.log("QUIT");
+			socket.write("QUIT\r\n");
+			socket.destroy();
+			return;
+
 		}
 	}
-
 });
 
 socket.connect(argv.port);
