@@ -59,6 +59,7 @@ this.mailbox = function(fd, cb) {
 
 	// Not the best data structure, but its good enough
 	var messages = {
+		deleted:  [],
 		offsets:  [],
 		sizes: [],
 		count: 0,
@@ -151,12 +152,11 @@ this.mailbox = function(fd, cb) {
 
 		if (msgnumber > messages.count) {
 
-			cb(true);
+			cb({errno: 6});
 
 		} else {
 
-			// Implement delete function
-//			msglist[msgNumber].deleted = true;
+			messages.deleted[msgnumber] = 1;
 			cb(null);
 
 		}
@@ -177,6 +177,13 @@ this.mailbox = function(fd, cb) {
 				cb(err, buffer.toString());
 			});
 		}
+	}
+
+	this.rset = function(cb) {
+
+		messages.deleted = [];
+		cb();
+
 	}
 
 	this.close=function(cb) {

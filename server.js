@@ -214,9 +214,17 @@ path.exists(argv.config, function(result) {
 
 					mbox.dele(msgnumber, function(err) {
 
-						support.sorry(socket);
-						logger.error("Attempted to delete invalid message number " + msgnumber + " for user " + user);
+						if (err) {
 
+							support.sorry(socket);
+							logger.error("Attempted to delete invalid message number " + msgnumber + " for user " + username);
+
+						} else {
+
+							support.ok(socket);
+							logger.log("Deleted message number " + msgnumber + " for user " + username);
+
+						}
 					});
 
 				}
@@ -226,10 +234,12 @@ path.exists(argv.config, function(result) {
 				logger.log("Got NOOP for user " + username);
 				support.ok(socket);
 
-			} else if (state === 3 && command === "noop") {
+			} else if (state === 3 && command === "rset") {
 
-				logger.log("Got NOOP for user " + username);
-				support.ok(socket);
+				logger.log("Got RSET for user " + username);
+				mbox.rset(function() {
+					support.ok(socket);
+				});
 
 
 			} else if (state === 3 && command === "quit") {
