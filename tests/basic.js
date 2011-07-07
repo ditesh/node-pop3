@@ -1,12 +1,14 @@
 var	net = require("net");
 	
 var	argv = require('optimist')
-		.usage("Usage: $0 --port [port] --username username --password password")
+		.usage("Usage: $0 --port [port] --username username --password password --list msgnumber")
 		.demand(['port', 'username', 'password'])
 		.argv;
 
 var	state = "username";
 var	multiline = false;
+
+var 	msgnumber = argv.list || 1;
 
 socket = net.Socket()
 socket.addListener('error', function(data) {
@@ -18,6 +20,8 @@ socket.addListener('data', function(data) {
 	console.log("GOT data: '" + data + "'");
 
 	if (multiline && data.slice(data.length-5).toString() === "\r\n.\r\n") {
+		multiline = false;
+	} else if (multiline && data.toString() === "-ERR\r\n") {
 		multiline = false;
 	}
 
@@ -56,21 +60,21 @@ socket.addListener('data', function(data) {
 
 		} else if (state === "listone") {
 
-			console.log("LIST 1");
-			socket.write("LIST 1\r\n");
+			console.log("LIST " + msgnumber);
+			socket.write("LIST " + msgnumber +"\r\n");
 			state="retr";
 
 		} else if (state === "retr") {
 
-			console.log("RETR 1");
-			socket.write("RETR 1\r\n");
+			console.log("RETR " + msgnumber);
+			socket.write("RETR " + msgnumber + "\r\n");
 			state = "dele";
 			multiline = true;
 
 		} else if (state === "dele") {
 
-			console.log("DELE 1");
-			socket.write("DELE 1\r\n");
+			console.log("DELE " + msgnumber);
+			socket.write("DELE " + msgnumber + " \r\n");
 			state = "quit";
 
 		} else if (state === "quit") {

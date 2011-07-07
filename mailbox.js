@@ -134,7 +134,7 @@ this.mailbox = function(fd, cb) {
 
 					msgsize = position + bytesRead - messages.offsets[i];
 					messages.size += msgsize;
-					messages.sizes[messages.offsets[i]] = msgsize;
+					messages.sizes.push(msgsize);
 					messages.count = messages.offsets.length;
 
 					// Make a copy
@@ -155,8 +155,7 @@ this.mailbox = function(fd, cb) {
 
 			else {
 
-				console.log(messages.sizes[messages.offsets[1]]);
-				cb(null, messages.sizes[messages.offsets[msgnumber]]);
+				cb(null, messages.sizes[msgnumber-1]);
 
 			}
 		} else {
@@ -172,16 +171,15 @@ this.mailbox = function(fd, cb) {
 
 	this.dele = function(msgnumber, cb) {
 
-		if (msgnumber > omessages.count) {
+		if (msgnumber > omessages.count || messages.deleted[msgnumber] !== undefined) {
 
 			cb({errno: 6});
 
 		} else {
 
-			var messagesize = messages
-			var offset = messages.offsets[msgnumber - 1];
+			var messagesize = messages.sizes[msgnumber-1]
 			delete messages.offsets[msgnumber - 1];
-			delete messages.sizes[offset];
+			delete messages.sizes[msgnumber-1];
 
 			messages.count -= 1;
 			messages.size -= messagesize;
@@ -195,13 +193,13 @@ this.mailbox = function(fd, cb) {
 
 	this.retr = function(msgnumber, cb) {
 
-		if (msgnumber > omessages.count) {
+		if (msgnumber > omessages.count || messages.deleted[msgnumber] !== undefined) {
 
 			cb({errno: 5});
 
 		} else {
 
-			var bufsize = messages.sizes[messages.offsets[msgnumber-1]];
+			var bufsize = messages.sizes[msgnumber-1];
 			var buffer = new Buffer(bufsize);
 
 			fs.read(fd, buffer, 0, bufsize, messages.offsets[msgnumber-1], function(err, bytesRead, buffer) {

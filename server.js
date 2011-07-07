@@ -157,7 +157,7 @@ path.exists(argv.config, function(result) {
 
 				var msgnumber = parseInt(argument, 10);
 
-				if (msgnumber === NaN || msgnumber <= 0) {
+				if (isNaN(msgnumber) || msgnumber <= 0) {
 
 					logger.error("Invalid message number " + argument + " in RETR for user " + username);
 					support.sorry(socket);
@@ -190,7 +190,7 @@ path.exists(argv.config, function(result) {
 
 					var msgnumber = parseInt(argument, 10);
 
-					if (msgnumber === NaN || msgnumber <= 0) {
+					if (isNaN(msgnumber) || msgnumber <= 0) {
 
 						support.sorry(socket);
 
@@ -236,8 +236,9 @@ path.exists(argv.config, function(result) {
 
 				var msgnumber = parseInt(argument, 10);
 
-				if (msgnumber === NaN || msgnumber <= 0) {
+				if (isNaN(msgnumber) || msgnumber <= 0) {
 
+					logger.error("Invalid message number " + argument + " in DELE for user " + username);
 					support.sorry(socket);
 
 				} else {
