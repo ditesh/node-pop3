@@ -88,6 +88,7 @@ path.exists(argv.config, function(result) {
 				// Session is active
 				if (activesessions[username] !== undefined) {
 
+					// Should we close the socket here?
 					logger.error("Login rejected as session still active for user " + username);
 					support.sorry(socket);
 
@@ -115,7 +116,7 @@ path.exists(argv.config, function(result) {
 								username = "";
 								password = "";
 								support.sorry(socket);
-								delete activesession[username];
+								delete activesessions[username];
 
 								if (err.errno === 1) {
 
@@ -167,12 +168,15 @@ path.exists(argv.config, function(result) {
 
 						if (err) {
 
+							logger.error("Invalid message number " + msgnumber + " in RETR for user " + username);
 							support.sorry(socket);
 
 						} else {
 
 							support.ok(socket);
-							console.log(data);
+							logger.log("Successfully retrieved message number " + msgnumber + " for user " + username);
+							support.write(socket, data);
+							support.write(socket, ".");
 
 						}
 					});
@@ -189,12 +193,12 @@ path.exists(argv.config, function(result) {
 
 					for (var i in msgsizes) {
 
-						support.write(count + " " + msgsizes[i]); 
+						support.write(socket, count + " " + msgsizes[i]); 
 						count++;
 
 					}
 
-					support.write(".");
+					support.write(socket, ".");
 
 				});
 
@@ -242,14 +246,16 @@ path.exists(argv.config, function(result) {
 
 		socket.addListener("end", function () {
 
-			if (typeof mbox === "object")
-				mbox.close();
+			if (typeof mbox === "object") {
 
-			if (activesessions[username] !== undefined)
-				delete activesessions[username];
+				mbox.close(function() {
+					logger.log("Closed file descriptor for user " + username);
+				});
+			}
 
-			socket.end();
+			delete activesessions[username];
 			logger.log("Closing connection from " + socket.remoteAddress);
+			socket.end();
 
 		});
 

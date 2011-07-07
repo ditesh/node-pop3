@@ -58,9 +58,12 @@ this.unlock= function(cb) {
 this.mailbox = function(fd, cb) {
 
 	// Not the best data structure, but its good enough
-	var msgoffset = [];
-	var msgsizes = [];
-	var totalmsgsize = 0;
+	var messages = {
+		offsets:  [],
+		sizes: [],
+		count: 0,
+		size: 0
+	}
 
 	function readmbox(position, previousbuf, cb) {
 
@@ -99,7 +102,7 @@ this.mailbox = function(fd, cb) {
 
 						// \nFrom is split between the buffers
 						} else if (buffer.slice(i+1, i+6).toString() === "From ")
-							msgoffset.push(position+i+1)
+							messages.offsets.push(position+i+1)
 
 					}
 
@@ -116,18 +119,19 @@ this.mailbox = function(fd, cb) {
 
 					i = 0;
 
-					while (i < msgoffset.length - 1) {
+					while (i < messages.offsets.length - 1) {
 
-						msgsize = msgoffset[i+1] - msgoffset[i];
-						totalmsgsize += msgsize;
-						msgsizes.push(msgsize);
+						msgsize = messages.offsets[i+1] - messages.offsets[i];
+						messages.size += msgsize;
+						messages.sizes.push(msgsize);
 						i++;
 
 					}
 
-					msgsize = position + bytesRead - msgoffset[i];
-					totalmsgsize += msgsize;
-					msgsizes[msgoffset[i]] = msgsize;
+					msgsize = position + bytesRead - messages.offsets[i];
+					messages.size += msgsize;
+					messages.sizes[messages.offsets[i]] = msgsize;
+					messages.count = messages.offsets.length;
 					cb(null);
 
 				}
@@ -136,16 +140,16 @@ this.mailbox = function(fd, cb) {
 	}
 
 	this.list = function(cb) {
-		cb(msgsizes);
+		cb(messages.sizes);
 	}
 
 	this.stat = function(cb) {
-		cb(msgoffset.length, totalmsgsize);
+		cb(messages.count, messages.size);
 	}
 
 	this.dele = function(msgnumber, cb) {
 
-		if (msgnumber > msgoffset.length) {
+		if (msgnumber > messages.count) {
 
 			cb(true);
 
@@ -158,26 +162,27 @@ this.mailbox = function(fd, cb) {
 		}
 	}
 
-	this.retr = function(msgnumber) {
+	this.retr = function(msgnumber, cb) {
 
-		if (msgnumber > msgoffset.length) {
+		if (msgnumber > messages.count) {
 
 			cb({errno: 5});
 
 		} else {
 
-			var buffer = new Buffer(msgsizes[msgoffset[msgnumber]]);
+			var bufsize = messages.sizes[messages.offsets[msgnumber-1]];
+			var buffer = new Buffer(bufsize);
 
-			fs.read(fd, buffer, 0, msgsizes[msgoffset[msgnumber]], msgoffset[msgnumber], function(err, bytesRead, buffer) {
+			fs.read(fd, buffer, 0, bufsize, messages.offsets[msgnumber-1], function(err, bytesRead, buffer) {
 				cb(err, buffer.toString());
 			});
 		}
 	}
 
-	this.close=function() {
+	this.close=function(cb) {
 
 		// This should automagically release the lock
-		fs.close(fd);
+		fs.close(fd, cb);
 
 	}
 
