@@ -186,27 +186,57 @@ path.exists(argv.config, function(result) {
 
 				logger.log("Got LIST for user " + username);
 
-				mbox.list(function(msgsizes) {
+				if (argument.length > 0) {
 
-					support.ok(socket);
-					var count = 1;
+					var msgnumber = parseInt(argument, 10);
 
-					for (var i in msgsizes) {
+					if (msgnumber === NaN || msgnumber <= 0) {
 
-						support.write(socket, count + " " + msgsizes[i]); 
-						count++;
+						support.sorry(socket);
+
+					} else {
+
+						mbox.list(msgnumber, function(err, size) {
+
+							if (err) {
+
+								support.sorry(socket);
+								logger.error("Attempted to list invalid message number " + msgnumber + " for user " + username);
+
+							} else {
+
+								support.ok(socket, msgnumber + " " + size);
+
+							}
+						});
 
 					}
 
-					support.write(socket, ".");
+				} else {
 
-				});
+					mbox.list(undefined, function(err, msgsizes) {
+
+						support.ok(socket);
+						var count = 1;
+
+						for (var i in msgsizes) {
+
+							support.write(socket, count + " " + msgsizes[i]); 
+							count++;
+
+						}
+
+						support.write(socket, ".");
+
+					});
+
+				}
 
 			} else if (state === 3 && command === "dele") {
 
 				var msgnumber = parseInt(argument, 10);
 
-				if (msgnumber === NaN) {
+				if (msgnumber === NaN || msgnumber <= 0) {
 
 					support.sorry(socket);
 

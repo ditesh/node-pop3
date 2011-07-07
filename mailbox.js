@@ -146,8 +146,24 @@ this.mailbox = function(fd, cb) {
 		});
 	}
 
-	this.list = function(cb) {
-		cb(messages.sizes);
+	this.list = function(msgnumber, cb) {
+
+		if (msgnumber !== undefined) {
+
+			if (msgnumber > omessages.count || messages.deleted[msgnumber] !== undefined)
+				cb({errno: 7});
+
+			else {
+
+				console.log(messages.sizes[messages.offsets[1]]);
+				cb(null, messages.sizes[messages.offsets[msgnumber]]);
+
+			}
+		} else {
+
+			cb(null, messages.sizes);
+
+		}
 	}
 
 	this.stat = function(cb) {
@@ -162,7 +178,6 @@ this.mailbox = function(fd, cb) {
 
 		} else {
 
-			// We take advantage of implicity JS hashing to avoid O(n) lookups
 			var messagesize = messages
 			var offset = messages.offsets[msgnumber - 1];
 			delete messages.offsets[msgnumber - 1];
@@ -170,6 +185,9 @@ this.mailbox = function(fd, cb) {
 
 			messages.count -= 1;
 			messages.size -= messagesize;
+
+			// We take advantage of implicity JS hashing to avoid O(n) lookups
+			messages.deleted[msgnumber] = 1;
 			cb(null);
 
 		}

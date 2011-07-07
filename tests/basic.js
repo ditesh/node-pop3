@@ -51,8 +51,14 @@ socket.addListener('data', function(data) {
 
 			console.log("LIST");
 			socket.write("LIST\r\n");
-			state="retr";
+			state="listone";
 			multiline = true;
+
+		} else if (state === "listone") {
+
+			console.log("LIST 1");
+			socket.write("LIST 1\r\n");
+			state="retr";
 
 		} else if (state === "retr") {
 
