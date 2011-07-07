@@ -62,11 +62,11 @@ this.mailbox = function(fd, cb) {
 
 	// Manipulated structure due to message deletion
 	var messages = {
+		size: 0,
+		count: 0,
+		sizes: [],
 		deleted:  [],
 		offsets:  [],
-		sizes: [],
-		count: 0,
-		size: 0
 	}
 
 	function readmbox(position, previousbuf, cb) {
@@ -165,6 +165,59 @@ this.mailbox = function(fd, cb) {
 		}
 	}
 
+	this.top = function(msgnumber, linesreq, cb) {
+
+		if (msgnumber > omessages.count || messages.deleted[msgnumber] !== undefined)
+			cb({errno: 8});
+
+		else {
+
+			getmessage(msgnumber, function(err, message) {
+
+				if (err)
+					cb(err);
+
+				else {
+
+					var i = 0;
+					var lines = 0;
+					var bodyend = 0;
+					var headersearch = true;
+
+					while (i < message.length) {
+
+						if (headersearch === true && message[i] === "\n" && message[i+1] === "\n") {
+
+							bodyend = i;
+							headersearch = false;
+
+						} else if (headersearch === false && lines >= linesreq) {
+
+							break;
+
+						} else if (headersearch === false && message[i] === "\n") {
+
+							lines++;
+
+							if (lines >= linesreq) {
+
+								bodyend = i;
+								break;
+
+							}
+						}
+
+						i += 1;
+
+					}
+
+					cb(null, message.slice(0, bodyend));
+
+				}
+			});
+		}
+	}
+
 	this.stat = function(cb) {
 		cb(messages.count, messages.size);
 	}
@@ -202,9 +255,8 @@ this.mailbox = function(fd, cb) {
 			var bufsize = messages.sizes[msgnumber-1];
 			var buffer = new Buffer(bufsize);
 
-			fs.read(fd, buffer, 0, bufsize, messages.offsets[msgnumber-1], function(err, bytesRead, buffer) {
-				cb(err, buffer.toString());
-			});
+			getmessage(msgnumber, cb);
+
 		}
 	}
 
@@ -220,6 +272,17 @@ this.mailbox = function(fd, cb) {
 
 		// This should automagically release the lock
 		fs.close(fd, cb);
+
+	}
+
+	function getmessage(msgnumber, cb) {
+
+		var bufsize = messages.sizes[msgnumber-1];
+		var buffer = new Buffer(bufsize);
+
+		fs.read(fd, buffer, 0, bufsize, messages.offsets[msgnumber-1], function(err, bytesRead, buffer) {
+			cb(err, buffer.toString());
+		});
 
 	}
 

@@ -59,19 +59,14 @@ path.exists(argv.config, function(result) {
 
 		socket.addListener("data", function (data) {
 
-			var argument = "";
-			var command = data.substring(0, 4).toLowerCase();
-
+			var datums = data.trim().split(" ");
+			var command = datums.shift().trim();
 			logger.log("Got command: '" + command + "'");
 
-			if (data.charAt(5) === "\n")
-				argument = "";
-			else
-				argument = data.substring(5, data.length-2); // Get the argument to the command, excluding the CRLF
-
+			var argument = datums.join(" ").trim();
 			logger.log("Got argument: '" + argument + "'");
 
-			if (state === 1 && command === "user") {
+			if (state === 1 && command === "USER") {
 
 				logger.log("Got USER for user " + username);
 
@@ -79,7 +74,7 @@ path.exists(argv.config, function(result) {
 				username = argument;
 				support.ok(socket);
 
-			} else if (state === 2 && command === "pass") {
+			} else if (state === 2 && command === "PASS") {
 
 				logger.log("Got PASS for user " + username);
 
@@ -141,7 +136,7 @@ path.exists(argv.config, function(result) {
 					});
 				}
 
-			} else if (state === 3 && command === "stat") {
+			} else if (state === 3 && command === "STAT") {
 
 				logger.log("Got STAT from user " + username);
 
@@ -151,7 +146,7 @@ path.exists(argv.config, function(result) {
 
 				});
 
-			} else if (state === 3 && command === "retr") {
+			} else if (state === 3 && command === "RETR") {
 
 				logger.log("Got RETR from user " + username);
 
@@ -182,7 +177,7 @@ path.exists(argv.config, function(result) {
 					});
 				}
 
-			} else if (state === 3 && command === "list") {
+			} else if (state === 3 && command === "LIST") {
 
 				logger.log("Got LIST for user " + username);
 
@@ -232,7 +227,7 @@ path.exists(argv.config, function(result) {
 
 				}
 
-			} else if (state === 3 && command === "dele") {
+			} else if (state === 3 && command === "DELE") {
 
 				var msgnumber = parseInt(argument, 10);
 
@@ -260,20 +255,59 @@ path.exists(argv.config, function(result) {
 
 				}
 
-			} else if (state === 3 && command === "noop") {
+			} else if (state === 3 && command === "NOOP") {
 
 				logger.log("Got NOOP for user " + username);
 				support.ok(socket);
 
-			} else if (state === 3 && command === "rset") {
+			} else if (state === 3 && command === "RSET") {
 
 				logger.log("Got RSET for user " + username);
 				mbox.rset(function() {
 					support.ok(socket);
 				});
 
+			} else if (state === 3 && command === "TOP") {
 
-			} else if (state === 3 && command === "quit") {
+				var args = argument.split(" ");
+
+				if (args.length !== 2) {
+
+					logger.error("Invalid arguments " + argument + " in TOPfor user " + username);
+					support.sorry(socket);
+
+				} else {
+
+					var msgnumber = parseInt(args[0], 10);
+					var lines = parseInt(args[1], 10);
+
+					if (isNaN(msgnumber) || msgnumber < 0 || isNaN(lines) || lines <= 0) {
+
+						logger.error("Invalid arguments " + argument + " in TOPfor user " + username);
+						support.sorry(socket);
+
+					} else {
+
+						mbox.top(msgnumber, lines, function(err, msg) {
+
+							if (err) {
+
+								support.sorry(socket);
+								logger.error("Attempted to TOP invalid message number " + msgnumber + " for user " + username);
+
+							} else {
+
+								support.ok(socket);
+								support.write(socket, msg);
+								support.write(socket, ".");
+
+							}
+						});
+
+					}
+				}
+
+			} else if (state === 3 && command === "QUIT") {
 
 				support.ok(socket, undefined, function() {
 					socket.emit("end");
