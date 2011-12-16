@@ -1,0 +1,37 @@
+{
+	"server": {
+
+		"port": 1111,
+		"timeout": 30,
+		"hostname": "localhost",
+		"pidpath": "/tmp/basic.json.pid"
+
+	},
+
+	"auth": {
+
+		"type": "pam",
+		"pam-service-name": "system-auth"
+
+	},
+
+	"mailbox": {
+
+		"type": "mbox",
+		"tmppath": "tmp/",
+		"path": "tmp/mboxes/$USER"
+
+	},
+
+	"logging": {
+
+		"enable": ["debug", "error", "warn", "info"],
+		"default": ["tmp/logs/default.log"],
+		"info": ["tmp/logs/info.log"],
+		"debug": ["tmp/logs/debug.log"],
+		"warn": ["tmp/logs/warn.log"],
+		"error": ["stdout", "tmp/logs/error.log"],
+		"stdout": ["tmp/logs/stdout.log"]
+
+	}
+}

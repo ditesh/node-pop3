@@ -1,0 +1,65 @@
+--- Server
+
+	0. Maildir support
+	1. CAPA support
+	2. APOP
+	3. TLS support
+	4. STLS support
+	5. AUTH support
+	6. Add timeout for sessions
+
+--- Tests
+
+	Repeat for the following scenarios:
+
+		* mbox doesn't exist
+		* mbox exists and is empty
+		* mbox exists, is not empty and has 1 message
+		* mbox exists, is not empty and has > 1 message
+
+	-- Single tests
+
+		The tests:
+
+			* Conn > QUIT
+
+				Expected: be able to connect and quit successfully
+
+			* Conn > USER > PASS (success) > QUIT
+
+				Expected: Success
+
+			* Conn > Auth (success) > LIST > (before List has finished) RETR > QUIT
+	
+				Expected: Success
+
+			* Conn > Auth (fail) > QUIT
+
+				Expected: Fail
+
+			* Conn > Timeout
+	
+				Expected: Success
+
+			* Conn > USER > PASS > Timeout
+	
+				Expected: Success
+
+			* Conn > USER > PASS > List
+			* Conn > USER > PASS > Retr
+			* Conn > USER > PASS > Dele > Rset > QUIT
+			* Conn > USER > PASS > Dele > Conn > USER > PASS > List > QUIT
+			* Conn > USER > PASS > Uidl (all) > QUIT
+			* Conn > USER > PASS > Uidl (somenumber) > QUIT > Conn > USER > PASS > Uidl(some number) > QUIT
+
+
+	-- Composite tests
+
+		The tests:
+
+			* Conn > USER > PASS > QUIT: Single concurrency for 6 hours
+			* Conn > USER > PASS > List (all) > Retr (all) > Dele (all) > QUIT > Conn > USER > PASS > List (should be 0)
+			* Conn > USER > PASS > List (1) > Retr (1) > Dele (1) > QUIT > Conn > USER > PASS > List (should be less by one)
+			* Conn > USER > PASS > Uidl (all) > QUIT > Conn > USER > PASS > Uidl (all) > QUIT (check if consistent)
+			* Conn > USER > PASS > Uidl (somenumber) > QUIT > Conn > USER > PASS > Uidl (somenumber) > QUIT (check if consistent)
+

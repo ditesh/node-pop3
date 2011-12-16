@@ -1,0 +1,8 @@
+Error numbers (in objects):
+
+0:
+1: PAM authentication failed
+2: Flock failed
+3: Cannot open mailbox
+4:
+
