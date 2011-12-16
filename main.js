@@ -420,14 +420,10 @@ path.exists(argv.config, function(result) {
 						
 						supporter.ok();
 
-						// Do we write 
-						for (var i=0; i < uidl.length; i++) {
+						for (var i=0; i < uidl.length; i++)
+							if (uidl[i] !== undefined) supporter.write((i+1) + " " + uidl[i]); // To skip over deleted messages
 
-							// To skip over deleted messages
-							if (uidl[i] !== undefined)
-								supporter.write((i+1) + " " + uidl[i]);
-
-						}
+						supporter.write(".");
 
 					} else {
 

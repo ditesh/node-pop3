@@ -1,6 +1,41 @@
 {
-	"type":	"mbox",
-	"port": 1111,
-	"log": "/tmp/pop3",
-	"spool": "/var/spool/mail"
+
+	"server": {
+
+		"port": 1111,
+		"timeout": 30,
+		"hostname": "localhost"
+
+	},
+
+	"auth": {
+
+		"type": "pam",
+		"pam-service-name": "system-auth"
+
+	},
+
+	"mailbox": {
+
+		"type": "mbox",
+		"tmppath": "/tmp",
+		"path": "tests/mboxes/$USER"
+
+	},
+
+	"logging": {
+
+		"enable": ["default", "debug", "error", "warn", "info", "syslog", "stdout", "stderr"],
+		"default": ["stdout", "/tmp/pop3.log"],
+		"info": ["stdout", "/tmp/pop3-info.log"],
+		"debug": ["stdout", "/tmp/pop3-debug.log"],
+		"warn": ["stdout", "/tmp/pop3-warn.log"],
+		"error": ["stderr", "/tmp/pop3-error.log"],
+
+		"syslog": {
+			"tag": null,
+			"facility": "daemon",
+			"hostname": "localhost"
+		}
+	}
 }

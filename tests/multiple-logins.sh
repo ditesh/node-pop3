@@ -47,7 +47,7 @@ for i in `seq 1 100`; do
 done
 print_result 0 "$OUTPUT"
 
-print_test "Valid USER/PASS with existing mbox file 1000x"
+print_test "Valid USER/PASS with existing mbox file 100x"
 for i in `seq 1 100`; do
     OUTPUT=`node login.js --username $USER --password $PASS --port $PORT --networkdebug on --debug on`;
     echo $OUTPUT | grep -q "fail"
