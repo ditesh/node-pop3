@@ -260,7 +260,8 @@ path.exists(argv.config, function(result) {
 
 							logger.info("Successfully retrieved message number " + msgnumber + " for user " + username);
 							supporter.ok();
-							supporter.write(data + ".");
+							supporter.write(data)
+                            supporter.write(".");
 
 						}
 					});

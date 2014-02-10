@@ -1,6 +1,6 @@
 /*
 
-	Node.js POP3 server test file
+	Node.js POP3 daemon test file
 
 	Copyright (C) 2011 by Ditesh Shashikant Gathani <ditesh@gathani.org>
 
